@@ -1,0 +1,8 @@
+# Default owners for everything in the repo
+* @TheFoxKD
+
+# Specific owners for critical parts
+/src/     @TheFoxKD
+/tests/   @TheFoxKD
+*.toml    @TheFoxKD
+*.yml     @TheFoxKD

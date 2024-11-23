@@ -20,22 +20,26 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
+# Testing
+.tox/
+.coverage
+.coverage.*
+.cache
+coverage.xml
+*.cover
+*.py,cover
+.pytest_cache/
+.mypy_cache/
 .venv/
-env/
-ENV/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
 
 # Project specific
-data/*.json
-!data/.gitkeep
-
-# OS
-.DS_Store
-Thumbs.db
+/data/*.json
+!/data/.gitkeep
 /uv.lock
