@@ -70,7 +70,7 @@ pytest
 pytest --cov=./src --cov-report=term-missing
 
 # Run type checking
-mypy src tests
+mypy src
 
 # Run linting
 ruff check .

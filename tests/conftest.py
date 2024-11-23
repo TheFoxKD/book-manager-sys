@@ -1,10 +1,23 @@
 # tests/conftest.py
+import io
+import sys
+from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import pytest
+from _pytest.monkeypatch import MonkeyPatch
+from rich.console import Console
 
+from src.cli.app import BookManagerCLI
+from src.cli.commands.add import AddCommand
+from src.cli.commands.base import BaseCommand, CommandResult
+from src.cli.commands.delete import DeleteCommand
+from src.cli.commands.list import ListCommand
+from src.cli.commands.search import SearchCommand
+from src.cli.commands.status import StatusCommand
+from src.cli.output import ConsoleOutput, OutputFormatter
 from src.models.book import Book, BookStatus
 from src.storage.abstract import AbstractStorage
 from src.storage.json_storage import InMemoryStorage, JsonStorage
@@ -153,3 +166,134 @@ def storage(request, storage_file) -> AbstractStorage:
     if storage_class == JsonStorage:
         return JsonStorage(storage_file)
     return InMemoryStorage()
+
+
+class MockCommand(BaseCommand):
+    """Mock command for testing."""
+
+    def __init__(self, name: str, result: CommandResult) -> None:
+        self.mock_name = name
+        self.result = result
+        super().__init__()
+
+    @property
+    def name(self) -> str:
+        return self.mock_name
+
+    def configure(self, parser):
+        pass
+
+    def execute(self, args):
+        return self.result
+
+
+class MockOutput(OutputFormatter):
+    """Mock output formatter for testing."""
+
+    def __init__(self) -> None:
+        self.displayed_results: list[CommandResult] = []
+        self.errors: list[str] = []
+
+    def display(self, result: CommandResult) -> None:
+        self.displayed_results.append(result)
+
+    def error(self, message: str) -> None:
+        self.errors.append(message)
+
+
+@pytest.fixture
+def mock_command_result() -> CommandResult:
+    """Fixture providing a mock command result."""
+    return CommandResult(success=True, message="Test succeeded", data=None)
+
+
+@pytest.fixture
+def mock_command(mock_command_result) -> MockCommand:
+    """Fixture providing a mock command."""
+    return MockCommand("test", mock_command_result)
+
+
+@pytest.fixture
+def mock_output() -> MockOutput:
+    """Fixture providing a mock output formatter."""
+    return MockOutput()
+
+
+@pytest.fixture
+def capture_stdout() -> Generator[io.StringIO, None, None]:
+    """Fixture for capturing stdout."""
+    stdout = io.StringIO()
+    old_stdout = sys.stdout
+    sys.stdout = stdout
+    yield stdout
+    sys.stdout = old_stdout
+
+
+@pytest.fixture
+def capture_stderr() -> Generator[io.StringIO, None, None]:
+    """Fixture for capturing stderr."""
+    stderr = io.StringIO()
+    old_stderr = sys.stderr
+    sys.stderr = stderr
+    yield stderr
+    sys.stderr = old_stderr
+
+
+@pytest.fixture
+def rich_console(monkeypatch: MonkeyPatch) -> Console:
+    """Fixture providing a Rich console with captured output."""
+    output = io.StringIO()
+    console = Console(file=output, force_terminal=True)
+    monkeypatch.setattr("src.cli.output.Console", lambda: console)
+    return console
+
+
+@pytest.fixture
+def console_output(rich_console) -> ConsoleOutput:
+    """Fixture providing a ConsoleOutput instance."""
+    return ConsoleOutput()
+
+
+@pytest.fixture
+def cli_args() -> dict[str, dict[str, Any]]:
+    """Fixture providing various CLI argument combinations."""
+    return {
+        "add": {
+            "valid": ["add", "Test Book", "Test Author", "2020"],
+            "invalid_year": ["add", "Test Book", "Test Author", "invalid"],
+            "missing_args": ["add", "Test Book"],
+        },
+        "delete": {
+            "valid": ["delete", "test_id"],
+            "missing_id": ["delete"],
+        },
+        "search": {
+            "valid": ["search", "test", "--field", "title"],
+            "invalid_field": ["search", "test", "--field", "invalid"],
+        },
+        "list": {
+            "valid": ["list"],
+        },
+        "status": {
+            "valid": ["status", "test_id", "borrowed"],
+            "invalid_status": ["status", "test_id", "invalid"],
+        },
+    }
+
+
+@pytest.fixture
+def cli_commands(storage) -> list[BaseCommand]:
+    """Fixture providing default CLI commands."""
+    return [
+        AddCommand(storage),
+        DeleteCommand(storage),
+        ListCommand(storage),
+        SearchCommand(storage),
+        StatusCommand(storage),
+    ]
+
+
+@pytest.fixture
+def cli_app(storage, cli_commands) -> BookManagerCLI:
+    """Fixture providing a CLI application instance."""
+    return BookManagerCLI(storage, cli_commands)
