@@ -1,10 +1,13 @@
 # tests/conftest.py
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
 
 from src.models.book import Book, BookStatus
+from src.storage.abstract import AbstractStorage
+from src.storage.json_storage import InMemoryStorage, JsonStorage
 
 
 @pytest.fixture
@@ -19,18 +22,15 @@ def mock_current_time(monkeypatch) -> datetime:
         Fixed datetime object
     """
     initial_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
-    next_time = datetime(2024, 1, 1, 12, 1, 0, tzinfo=UTC)  # 1 minute later
-    times = [initial_time, next_time]
-    current_index = 0
+    time_increment = 1  # increment in minutes
 
     class MockDatetime:
+        _current_time = initial_time
+
         @classmethod
-        def now(cls, tz=None):  # Add tz parameter
-            nonlocal current_index
-            time = times[current_index]
-            if current_index < len(times) - 1:
-                current_index += 1
-            return time
+        def now(cls, tz=None):
+            cls._current_time += timedelta(minutes=time_increment)
+            return cls._current_time
 
         @classmethod
         def fromisoformat(cls, date_string):
@@ -133,3 +133,23 @@ def invalid_book_data() -> dict[str, dict[str, Any]]:
         "long_title": {"title": "x" * 201, "author": "Valid Author", "year": 2020},
         "long_author": {"title": "Valid Title", "author": "x" * 101, "year": 2020},
     }
+
+
+@pytest.fixture
+def storage_file(tmp_path) -> Path:
+    """Create a temporary storage file."""
+    return tmp_path / "test_storage.json"
+
+
+@pytest.fixture(params=[JsonStorage, InMemoryStorage])
+def storage(request, storage_file) -> AbstractStorage:
+    """
+    Parametrized fixture providing both storage implementations.
+
+    For JsonStorage, uses a temporary file.
+    For InMemoryStorage, the file parameter is ignored.
+    """
+    storage_class: type[AbstractStorage] = request.param
+    if storage_class == JsonStorage:
+        return JsonStorage(storage_file)
+    return InMemoryStorage()
