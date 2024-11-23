@@ -5,6 +5,7 @@ from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -297,3 +298,42 @@ def cli_commands(storage) -> list[BaseCommand]:
 def cli_app(storage, cli_commands) -> BookManagerCLI:
     """Fixture providing a CLI application instance."""
     return BookManagerCLI(storage, cli_commands)
+
+
+@pytest.fixture
+def mock_console(monkeypatch) -> Mock:
+    """Fixture providing a mocked Rich console."""
+    console = Mock(spec=Console)
+    monkeypatch.setattr("src.cli.output.Console", lambda: console)
+    return console
+
+
+@pytest.fixture
+def sample_data() -> dict[str, Any]:
+    """Fixture providing sample test data."""
+    now = datetime.now(UTC)
+    return {
+        "single": {
+            "id": "book_1",
+            "title": "Test Book",
+            "author": "Test Author",
+            "year": 2024,
+            "status": "available",
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+        },
+        "multiple": [
+            {
+                "id": "book_1",
+                "title": "Book 1",
+                "author": "Author 1",
+                "status": "available",
+            },
+            {
+                "id": "book_2",
+                "title": "Book 2",
+                "author": "Author 2",
+                "status": "borrowed",
+            },
+        ],
+    }

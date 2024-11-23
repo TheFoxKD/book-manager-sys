@@ -1,11 +1,11 @@
 # src/cli/app.py
 import argparse
-import logging
 import sys
 from collections.abc import Sequence
 from pathlib import Path
 
 from src.cli.commands.base import BaseCommand
+from src.cli.output import ConsoleOutput
 from src.storage.abstract import AbstractStorage
 from src.storage.json_storage import StorageError
 
@@ -18,7 +18,7 @@ class BookManagerCLI:
     ) -> None:
         """Initialize CLI application."""
         self.storage = storage
-        self.logger = logging.getLogger(__name__)
+        self.output = ConsoleOutput()
 
         self.parser = argparse.ArgumentParser(
             description="Book Manager CLI",
@@ -52,34 +52,23 @@ class BookManagerCLI:
 
             command = self.commands[parsed_args.command]
             result = command.execute(parsed_args)
+            self.output.display(result)
 
-            if not result.success:
-                self.logger.error(result.message)
-                return 1
-
-            self.logger.info(result.message)
-            return 0
+            return 0 if result.success else 1
 
         except StorageError as e:
-            self.logger.error("Storage error: %s", str(e))
+            self.output.error(f"Storage error: {e}")
             return 2
 
         except Exception as e:
-            self.logger.error("Unexpected error: %s", str(e))
+            self.output.error(f"Unexpected error: {e}")
             return 3
 
 
 def main() -> None:
     """CLI entry point."""
     try:
-        # Configure logging
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        )
-
-        # Setup storage
-        storage_path = Path.home() / ".book-manager" / "books.json"
+        storage_path = Path("data/books.json")
         storage_path.parent.mkdir(parents=True, exist_ok=True)
 
         from src.cli.commands.add import AddCommand
@@ -102,7 +91,8 @@ def main() -> None:
         sys.exit(app.run(sys.argv[1:]))
 
     except Exception as e:
-        logging.error("Failed to initialize application: %s", str(e))
+        console = ConsoleOutput()
+        console.error(f"Failed to initialize application: {e}")
         sys.exit(1)
 
 

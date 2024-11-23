@@ -1,5 +1,4 @@
 # src/cli/output.py
-import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
@@ -132,36 +131,6 @@ class ConsoleOutput(OutputFormatter):
             table.add_row(formatted_key, str(formatted_value))
 
         self.console.print(table)
-
-
-class LoggingOutput(OutputFormatter):
-    """Output formatter that writes to a log file."""
-
-    def __init__(self, log_file: str) -> None:
-        """
-        Initialize logging output.
-
-        Args:
-            log_file: Path to the log file
-        """
-        self.logger = logging.getLogger(__name__)
-        handler = logging.FileHandler(log_file)
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-        )
-        self.logger.addHandler(handler)
-
-    def display(self, result: CommandResult) -> None:
-        """Log command result."""
-        level = logging.INFO if result.success else logging.ERROR
-        self.logger.log(level, result.message)
-
-        if result.data:
-            self.logger.debug("Command data: %s", result.data)
-
-    def error(self, message: str) -> None:
-        """Log error message."""
-        self.logger.error(message)
 
 
 class MultiOutput(OutputFormatter):
